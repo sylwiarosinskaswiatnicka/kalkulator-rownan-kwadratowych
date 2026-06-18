@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Równań Kwadratowych</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <style>
+        /* EFEKTOWNE TŁO: Szkolna tablica grafitowa */
+        body {
+            background-color: #2b3a42;
+            background-image:
+                radial-gradient(rgba(255,255,255,0.15) 1px, transparent 0),
+                radial-gradient(rgba(255,255,255,0.1) 2px, transparent 0);
+            background-size: 8px 8px, 16px 16px;
+            background-position: 0 0, 4px 4px;
+            min-height: 100vh;
+            padding-top: 2rem;
+        }
+
+        /* Styl nowoczesnego "arkusza notatek" na tle tablicy */
+        .card {
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Nagłówek karty */
+        .card-header {
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+        }
+
+        /* Kolorowe ramki dla kroków wewnątrz karty */
+        .math-box-delta { background-color: #fcf8ff; border-left: 5px solid #8b5cf6; padding: 1.5rem; margin-top: 1rem; border-radius: 8px; box-shadow: inset 0 0 8px rgba(139,92,246,0.05); }
+        .math-box-roots { background-color: #f6ffed; border-left: 5px solid #10b981; padding: 1.5rem; margin-top: 1rem; border-radius: 8px; box-shadow: inset 0 0 8px rgba(16,185,129,0.05); }
+
+        .step-label { font-weight: bold; font-size: 1.1rem; }
+        .step-label.delta-color { color: #6d28d9; }
+        .step-label.roots-color { color: #047857; }
+
+        /* Styl ułamka zwykłego – jak z zeszytu w kratkę */
+        .fraction-container {
+            display: inline-flex;
+            align-items: center;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.4rem;
+            margin: 1.5rem 0;
+            padding: 12px 20px;
+            background: #ffffff;
+            border-radius: 8px;
+            border: 2px dashed #cbd5e1;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .fraction-name { margin-right: 12px; font-weight: bold; color: #334155; }
+        .fraction { display: inline-flex; flex-direction: column; text-align: center; vertical-align: middle; padding: 0 10px; }
+        .numerator { border-bottom: 2px solid #334155; padding-bottom: 4px; font-weight: bold; color: #1e40af; }
+        .denominator { padding-top: 4px; font-weight: bold; color: #1e40af; }
+        .fraction-result { margin-left: 15px; font-weight: bold; color: #b91c1c; background: #fee2e2; padding: 4px 12px; border-radius: 6px; border: 1px solid #fca5a5; }
+
+        /* Pudełko ostrzeżenia o niewymierności */
+        .warning-badge { background-color: #fffbe6; border: 1px solid #ffe58f; color: #d46b08; padding: 12px; border-radius: 8px; margin-bottom: 1rem; font-size: 0.95rem; line-height: 1.4; }
+    </style>
+</head>
+<body>
+<section class="section">
+    <div class="container">
+        <div class="columns is-centered">
+            <div class="column is-half">
+                <div class="card">
+                    <header class="card-header">
+                        <p class="card-header-title has-text-white is-centered py-4 title is-5">
+                            📐 Interaktywny Pomocnik Matematyczny
+                        </p>
+                    </header>
+                    <div class="card-content">
+
+                        {% if error %}
+                        <div class="notification is-danger is-light">
+                            <strong>Błąd:</strong> {{ error }}
+                        </div>
+                        {% endif %}
+
+                        {% if not results %}
+                        <div class="notification is-link is-light has-text-centered mb-5">
+                            Wpisz dane równania <strong>ax² + bx + c = 0</strong>, aby poznać sekwencję kroków.
+                        </div>
+                        <form method="POST">
+                            <div class="field">
+                                <label class="label">Współczynnik a</label>
+                                <div class="control">
+                                    <input class="input is-medium" type="text" name="a" placeholder="np. 2" value="{{ form.a }}">
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label class="label">Współczynnik b</label>
+                                <div class="control">
+                                    <input class="input is-medium" type="text" name="b" placeholder="np. 15" value="{{ form.b }}">
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label class="label">Współczynnik c</label>
+                                <div class="control">
+                                    <input class="input is-medium" type="text" name="c" placeholder="np. 4" value="{{ form.c }}">
+                                </div>
+                            </div>
+                            <div class="control mt-5">
+                                <button type="submit" class="button is-link is-fullwidth is-medium has-text-weight-bold">
+                                    🔍 Przeanalizuj równanie
+                                </button>
+                            </div>
+                        </form>
+                        {% else %}
+                        <div class="content">
+                            <h4 class="title is-5 has-text-centered has-text-grey-darker mb-4">Pełna analiza matematyczna</h4>
+
+                            <div class="math-box-delta">
+                                <span class="step-label delta-color">🧮 Krok 1: Wyznaczenie wyróżnika (Δ)</span>
+                                <div class="mt-2" style="font-size: 1.05rem;">
+                                    <span class="has-text-grey">Wzór:</span> <code>Δ = b² - 4ac</code><br>
+                                    <span class="has-text-grey">Podstawienie:</span> <strong>{{ results.delta_formula }}</strong><br>
+                                    <hr style="margin: 0.5rem 0; background-color: #ddd6fe;">
+                                    <span class="has-text-weight-bold" style="color: #6d28d9; font-size: 1.1rem;">Wynik: Δ = {{ results.delta }}</span>
+                                </div>
+                            </div>
+
+                            <div class="math-box-roots">
+                                <span class="step-label roots-color">🎯 Krok 2: Kalkulacja miejsc zerowych</span>
+                                <div class="mt-2">
+                                    {% for step in results.steps %}
+                                        {% if "Uwaga:" in step %}
+                                            <div class="warning-badge mt-2">⚠️ {{ step }}</div>
+                                        {% else %}
+                                            <div class="has-text-weight-semibold mb-2" style="color: #047857;">{{ step }}</div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+
+                                {% if results.x1 %}
+                                <div class="has-text-centered">
+                                    <div class="fraction-container">
+                                        <div class="fraction-name">x₁ =</div>
+                                        <div class="fraction">
+                                            <div class="numerator">{{ results.x1.licznik }}</div>
+                                            <div class="denominator">{{ results.x1.mianownik }}</div>
+                                        </div>
+                                        <div class="fraction-result">{{ results.x1.znak }} {{ results.x1.wynik }}</div>
+                                    </div>
+                                    <br>
+                                    <div class="fraction-container">
+                                        <div class="fraction-name">x₂ =</div>
+                                        <div class="fraction">
+                                            <div class="numerator">{{ results.x2.licznik }}</div>
+                                            <div class="denominator">{{ results.x2.mianownik }}</div>
+                                        </div>
+                                        <div class="fraction-result">{{ results.x2.znak }} {{ results.x2.wynik }}</div>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if results.x0 %}
+                                <div class="has-text-centered">
+                                    <div class="fraction-container">
+                                        <div class="fraction-name">x₀ =</div>
+                                        <div class="fraction">
+                                            <div class="numerator">{{ results.x0.licznik }}</div>
+                                            <div class="denominator">{{ results.x0.mianownik }}</div>
+                                        </div>
+                                        <div class="fraction-result">{{ results.x0.znak }} {{ results.x0.wynik }}</div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="has-text-centered mt-5">
+                                <a href="/" class="button is-link is-light">
+                                    ↩️ Wróć do formularza
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+</body>
+</html>
